@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Banco de pruebas · Calidad en respuestas de IA</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+
+<div class="rack">
+  <div class="rack-brand">
+    <b>Banco de pruebas</b>
+    <span>Calidad en respuestas de IA</span>
+  </div>
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" aria-selected="true" data-view="v1">1 · El wow que engaña</button>
+    <button class="tab" role="tab" aria-selected="false" data-view="v2">2 · Consistencia</button>
+  </div>
+  <div class="rack-right">
+    <span class="lamp" id="lamp"><i></i><span id="lampText">conectando…</span></span>
+    <label class="switch" title="Sirve respuestas guardadas en vez de llamar a la API">
+      <input type="checkbox" id="replay">
+      <span>Modo repetición</span>
+    </label>
+    <button class="icon-btn" id="gear">Ajustes</button>
+  </div>
+</div>
+
+<section class="settings" id="settings" hidden>
+  <div class="settings-grid">
+    <div class="field">
+      <label for="model">Modelo</label>
+      <select id="model"></select>
+    </div>
+    <div class="field">
+      <label for="effort">Esfuerzo</label>
+      <select id="effort" style="min-width:130px">
+        <option value="low">low</option>
+        <option value="medium">medium</option>
+        <option value="high">high</option>
+        <option value="xhigh">xhigh</option>
+      </select>
+    </div>
+    <div class="field" id="tempField">
+      <label for="temp">Temperatura</label>
+      <input type="number" id="temp" min="0" max="1" step="0.1" style="min-width:100px">
+    </div>
+    <div class="field">
+      <label for="maxtok">Tokens máx.</label>
+      <input type="number" id="maxtok" min="50" max="4000" step="50" style="min-width:120px">
+    </div>
+  </div>
+  <p class="settings-note" id="samplingNote"></p>
+  <p class="settings-note">
+    La llave de API vive en el archivo <code>.env</code> del servidor y nunca llega al navegador.
+    Antes de la charla corre ambas demos una vez: las respuestas quedan guardadas en <code>data/</code>
+    y el modo repetición las sirve si la red de la sala falla.
+  </p>
+  <div class="saved-list" id="savedList"></div>
+</section>
+
+<main>
+
+<!-- ============ DEMO 1 ============ -->
+<div class="view active" id="v1">
+  <p class="stage-head">Apertura y cierre de la ponencia</p>
+  <h1>La misma pregunta, dos formas de pedirla</h1>
+  <p class="hint">Abre la charla con el prompt sin salvaguardas. Ciérrala con el que exige evidencia, en esta misma pantalla, para que la sala vea el contraste sin explicación.</p>
+
+  <div class="console">
+    <div class="preset-row">
+      <button class="preset" data-preset="loose" aria-pressed="true">
+        Sin salvaguardas <small>como lo pide todo el mundo</small>
+      </button>
+      <button class="preset" data-preset="strict" aria-pressed="false">
+        Con exigencia de evidencia <small>fuentes, confianza, permiso de no saber</small>
+      </button>
+    </div>
+
+    <label class="field-label" for="sys1">Instrucción de sistema</label>
+    <textarea id="sys1" class="sys"></textarea>
+
+    <label class="field-label" for="q1" style="margin-top:18px">Pregunta</label>
+    <textarea id="q1" class="ask">¿Qué dijo exactamente Edsger Dijkstra sobre las pruebas de software en su conferencia de 1972, y en qué página del acta aparece la cita?</textarea>
+
+    <div class="run-row">
+      <button class="run" id="go1">Preguntar</button>
+      <button class="run ghost" id="reveal">Revelar verificación</button>
+      <span class="status" id="st1"></span>
+    </div>
+  </div>
+
+  <div class="answer empty" id="ans1">La respuesta aparecerá aquí, en grande.</div>
+
+  <div class="verdict" id="verdict" hidden>
+    <h3>Qué falló</h3>
+    <div class="verdict-body" id="verdictBody"></div>
+    <textarea id="verdictEdit" hidden></textarea>
+    <button class="icon-btn" id="editVerdict">Editar esta nota</button>
+    <button class="icon-btn" id="saveVerdict" hidden>Guardar nota</button>
+  </div>
+</div>
+
+<!-- ============ DEMO 2 ============ -->
+<div class="view" id="v2">
+  <p class="stage-head">Dimensión 3 del framework</p>
+  <h1>La misma pregunta, veinte veces</h1>
+  <p class="hint">Una sola respuesta de un modelo es una muestra de una distribución, no un veredicto. Mira los dos indicadores por separado: el vocabulario casi siempre cambia, pero lo que importa es si cambian los datos.</p>
+
+  <div class="console">
+    <label class="field-label" for="q2">Pregunta</label>
+    <textarea id="q2" class="ask">¿En qué año se acuñó por primera vez el término "ingeniería de software" y cuántas personas asistieron a la conferencia donde se popularizó? Responde en dos frases.</textarea>
+
+    <div class="run-row">
+      <div class="field">
+        <label for="n">Ejecuciones</label>
+        <select id="n" style="min-width:110px">
+          <option>3</option><option>5</option><option selected>10</option><option>20</option>
+        </select>
+      </div>
+      <button class="run" id="go2">Ejecutar</button>
+      <button class="run ghost" id="clear2">Limpiar</button>
+      <span class="status" id="st2"></span>
+    </div>
+  </div>
+
+  <div class="gauges">
+    <div class="gauge" id="gFact">
+      <div class="cap">Divergencia en los datos</div>
+      <div class="val" id="vFact">–</div>
+      <div class="sub">cifras, años y porcentajes</div>
+    </div>
+    <div class="gauge" id="gLex">
+      <div class="cap">Divergencia léxica</div>
+      <div class="val" id="vLex">–</div>
+      <div class="sub">solo la redacción</div>
+    </div>
+    <div class="gauge" id="gUniq">
+      <div class="cap">Respuestas distintas</div>
+      <div class="val" id="vUniq">–</div>
+      <div class="sub">textos únicos tras normalizar</div>
+    </div>
+    <div class="gauge" id="gLen">
+      <div class="cap">Longitud</div>
+      <div class="val" id="vLen">–</div>
+      <div class="sub">palabras, mínimo a máximo</div>
+    </div>
+  </div>
+
+  <div class="facts" id="facts" hidden>
+    <div class="cap">Datos que apareció diciendo, y en cuántas ejecuciones</div>
+    <div class="chips" id="chips"></div>
+  </div>
+
+  <div class="runs" id="runs"></div>
+  <p class="legend" id="legend" hidden>En rojo, las palabras que no aparecen en todas las respuestas.</p>
+</div>
+
+</main>
+
+<script src="/static/app.js"></script>
+</body>
+</html>
