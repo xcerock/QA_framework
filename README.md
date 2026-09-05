@@ -12,18 +12,53 @@ Backend en FastAPI, frontend sin framework ni build. La llave de API vive en el 
 
 ## Arrancar
 
+El entorno se gestiona con **conda** (`environment.yml`, Python 3.12).
+
+### Windows (PowerShell)
+
+```powershell
+copy .env.example .env    # pon tu ANTHROPIC_API_KEY
+.\run.ps1
+```
+
+El script crea el entorno conda si no existe, instala dependencias y levanta el
+servidor en `http://127.0.0.1:8000`.
+
+| Parámetro | Para qué |
+|---|---|
+| `-NoReload` | Arranque rápido, sin recarga automática. **Úsalo el día del evento.** |
+| `-Port 9000` | Cambiar el puerto |
+| `-Recreate` | Borrar y volver a crear el entorno desde cero |
+
+Si PowerShell bloquea el script por la política de ejecución:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\run.ps1
+```
+
+Si `conda` no está en el PATH, abre una *Anaconda Prompt*, o carga el hook antes:
+
+```powershell
+& "$env:USERPROFILE\AppData\Local\miniconda3\shell\condabin\conda-hook.ps1"
+```
+
+> **Ojo con `--reload` en Windows.** El proceso hijo del recargador tarda unos
+> **40 segundos** en levantar la primera vez, porque Windows crea el subproceso
+> con `spawn` y vuelve a importar todo. No está colgado, está arrancando. Con
+> `-NoReload` levanta en segundos.
+
+### macOS y Linux
+
 ```bash
 cp .env.example .env      # pon tu ANTHROPIC_API_KEY
 ./run.sh
 ```
 
-El script crea el entorno virtual, instala dependencias y levanta el servidor en `http://127.0.0.1:8000`.
-
-A mano, si prefieres:
+### A mano, en cualquier sistema
 
 ```bash
-python3 -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
+conda env create -f environment.yml
+conda activate qa-framework
 uvicorn app.main:app --reload
 ```
 
@@ -106,6 +141,9 @@ static/
   styles.css        panel de instrumentos, pensado para proyección
   app.js            lógica del cliente
 data/               corridas guardadas (ignorado por git)
+environment.yml     entorno conda
+run.ps1             arranque en Windows
+run.sh              arranque en macOS y Linux
 ```
 
 ## Antes de subir al escenario

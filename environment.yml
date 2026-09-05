@@ -1,0 +1,15 @@
+# Entorno conda del banco de pruebas.
+#
+#   conda env create -f environment.yml
+#   conda activate qa-framework
+#
+# Si ya existe y quieres actualizarlo:
+#   conda env update -f environment.yml --prune
+name: qa-framework
+channels:
+  - conda-forge
+dependencies:
+  - python=3.12
+  - pip
+  - pip:
+      - -r requirements.txt
