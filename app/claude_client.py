@@ -35,9 +35,19 @@ _NO_TEMPERATURE = re.compile(
 
 _SAMPLING_COMPLAINT = re.compile(r"temperature|top_p|top_k|sampling", re.IGNORECASE)
 
+# El reverso de la moneda: las familias antiguas aceptan temperature pero no
+# conocen output_config.effort, y lo rechazan con un 400.
+_NO_EFFORT = re.compile(r"haiku-4-5|haiku-4\.5|haiku-3", re.IGNORECASE)
+
+_EFFORT_COMPLAINT = re.compile(r"effort|output_config", re.IGNORECASE)
+
 
 def accepts_temperature(model: str) -> bool:
     return not _NO_TEMPERATURE.search(model or "")
+
+
+def accepts_effort(model: str) -> bool:
+    return not _NO_EFFORT.search(model or "")
 
 
 class ClientError(Exception):
@@ -73,6 +83,7 @@ class ClaudeClient:
         max_tokens: int | None,
         effort: str | None,
         with_temperature: bool,
+        with_effort: bool,
     ) -> dict:
         payload: dict = {
             "model": model,
@@ -83,7 +94,7 @@ class ClaudeClient:
             payload["system"] = system.strip()
 
         chosen = effort or self._settings.default_effort
-        if chosen and chosen != "default":
+        if with_effort and chosen and chosen != "default":
             payload["output_config"] = {"effort": chosen}
 
         if with_temperature and accepts_temperature(model):
@@ -115,20 +126,32 @@ class ClaudeClient:
         started = time.perf_counter()
         message = None
 
-        for send_temperature in (True, False):
+        # Cada modelo acepta un subconjunto distinto de perillas de muestreo.
+        # Empezamos con lo que sabemos que admite y vamos soltando lo que
+        # rechace, en vez de pintar un error rojo en mitad de la ponencia.
+        send_temperature = True
+        send_effort = accepts_effort(target)
+
+        for _ in range(3):
             payload = self._payload(
                 prompt, system, target, temperature, max_tokens, effort,
                 with_temperature=send_temperature,
+                with_effort=send_effort,
             )
             try:
                 message = await self._client.messages.create(**payload)
                 break
             except APIStatusError as exc:
+                text = str(exc)
+                if exc.status_code == 400 and send_effort and _EFFORT_COMPLAINT.search(text):
+                    send_effort = False
+                    continue
                 if (
-                    send_temperature
-                    and exc.status_code == 400
-                    and _SAMPLING_COMPLAINT.search(str(exc))
+                    exc.status_code == 400
+                    and send_temperature
+                    and _SAMPLING_COMPLAINT.search(text)
                 ):
+                    send_temperature = False
                     dropped = True
                     continue
                 raise ClientError(
@@ -136,6 +159,15 @@ class ClaudeClient:
                 ) from exc
             except asyncio.TimeoutError as exc:
                 raise ClientError("La API no respondió a tiempo.") from exc
+            except TypeError as exc:
+                # A partir del SDK 1.x, `temperature` ya no existe en la firma de
+                # messages.create: el rechazo ocurre aquí, antes de salir a la red,
+                # y por tanto nunca llega a ser un 400. Mismo remedio que arriba.
+                if send_temperature and _SAMPLING_COMPLAINT.search(str(exc)):
+                    send_temperature = False
+                    dropped = True
+                    continue
+                raise ClientError(f"No se pudo llamar a la API. {exc}") from exc
             except Exception as exc:
                 raise ClientError(f"No se pudo llamar a la API. {exc}") from exc
 

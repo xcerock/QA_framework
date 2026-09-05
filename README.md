@@ -138,7 +138,7 @@ app/
   replay.py         respuestas guardadas para el modo repetición
 static/
   index.html        interfaz
-  styles.css        panel de instrumentos, pensado para proyección
+  styles.css        estilo de cartel, continuo con las slides de la ponencia
   app.js            lógica del cliente
 data/               corridas guardadas (ignorado por git)
 environment.yml     entorno conda
