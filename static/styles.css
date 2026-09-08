@@ -190,6 +190,16 @@ textarea.ask{min-height:104px}
   border-style:dashed;display:flex;align-items:center;
 }
 
+/* Markdown minimo dentro de la respuesta del modelo: negrita ya llega en
+   700 (cargado), cursiva en la variante italica real, y codigo en linea con
+   un contorno fino en vez de fondo, para no romper la regla de "cero relleno
+   salvo blanco". */
+.answer strong,.run-card .body strong{font-weight:700}
+.answer em,.run-card .body em{font-style:italic}
+.answer code,.run-card .body code{
+  border:1px solid currentColor;padding:1px 6px;
+}
+
 .verdict{
   margin-top:26px;background:var(--white);
   border:var(--rule) solid var(--orange);padding:26px 30px;

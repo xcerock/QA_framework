@@ -169,7 +169,7 @@ $("go1").addEventListener("click", async () => {
       ...commonSettings(),
     });
     box.className = "answer " + preset;
-    box.textContent = data.text;
+    box.innerHTML = mdToHtml(data.text);
     status.textContent = data.from_replay
       ? "desde repetición"
       : `${data.latency_ms} ms · ${data.usage.output_tokens} tokens` +
@@ -206,29 +206,58 @@ $("saveVerdict").addEventListener("click", () => {
   $("saveVerdict").hidden = true;
 });
 
-/* ---------- demo 2 ---------- */
+/* Markdown minimo, sin dependencias: nada de CDN, la red de la sala es el
+   riesgo real de la demo. Trabaja sobre texto ya escapado, asi que solo
+   puede producir strong, em y code: nunca HTML ni atributos del modelo. */
 const escapeHtml = (s) =>
   s.replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
 
+function mdToHtml(raw) {
+  return escapeHtml(raw)
+    .replace(/`([^`]+)`/g, "<code>$1</code>")
+    .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
+    .replace(/__([^_]+)__/g, "<strong>$1</strong>")
+    .replace(/\*([^*]+)\*/g, "<em>$1</em>")
+    .replace(/(?<![\w])_([^_]+)_(?![\w])/g, "<em>$1</em>");
+}
+
+/* ---------- demo 2 ---------- */
 const normToken = (token) =>
   token.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")
     .replace(/[^\p{L}\p{N}]/gu, "");
 
-function highlight(text, volatile) {
-  return text.split(/(\s+)/).map((token) => {
-    if (/^\s+$/.test(token)) return token;
-    const clean = normToken(token);
-    const safe = escapeHtml(token);
-    return clean && volatile.has(clean) ? `<mark>${safe}</mark>` : safe;
-  }).join("");
+/* Resalta sobre el DOM ya renderizado, no sobre el string de markdown: asi
+   una palabra volatil dentro de un negrita se marca igual, sin que el regex
+   de mark tenga que adivinar donde empiezan y acaban las otras etiquetas. */
+function highlightVolatileWords(container, volatile) {
+  const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT);
+  const textNodes = [];
+  let node;
+  while ((node = walker.nextNode())) textNodes.push(node);
+
+  for (const textNode of textNodes) {
+    const parts = textNode.nodeValue.split(/(\s+)/);
+    const frag = document.createDocumentFragment();
+    let changed = false;
+    for (const part of parts) {
+      const clean = !/^\s*$/.test(part) && normToken(part);
+      if (clean && volatile.has(clean)) {
+        const mark = document.createElement("mark");
+        mark.textContent = part;
+        frag.appendChild(mark);
+        changed = true;
+      } else {
+        frag.appendChild(document.createTextNode(part));
+      }
+    }
+    if (changed) textNode.replaceWith(frag);
+  }
 }
 
 function renderCards(runs, volatile) {
   $("runs").innerHTML = runs.map((run) => {
     const failed = run.state === "failed";
-    const body = failed
-      ? escapeHtml(run.text)
-      : (volatile ? highlight(run.text, volatile) : escapeHtml(run.text));
+    const body = failed ? escapeHtml(run.text) : mdToHtml(run.text);
     const meta = failed ? "falló" : `${run.word_count} palabras`;
     return `<div class="run-card ${failed ? "failed" : ""}">
       <header>
@@ -238,6 +267,11 @@ function renderCards(runs, volatile) {
       <div class="body">${body}</div>
     </div>`;
   }).join("");
+
+  if (volatile && volatile.size) {
+    document.querySelectorAll("#runs .run-card:not(.failed) .body")
+      .forEach((body) => highlightVolatileWords(body, volatile));
+  }
 }
 
 function renderPending(count) {
